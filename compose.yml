@@ -1,0 +1,9 @@
+services:
+  lossless-addon:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Required. Generate once with: openssl rand -hex 32
+      SECRET_ID: ${SECRET_ID:?set SECRET_ID in .env}
