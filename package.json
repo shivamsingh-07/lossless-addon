@@ -17,15 +17,15 @@
     "start": "node dist/adapters/node.js",
     "dev": "tsx watch src/adapters/node.ts",
     "dev:worker": "wrangler dev",
-    "deploy": "npm run typecheck && npm test && wrangler deploy",
-    "deploy:dry-run": "wrangler deploy --dry-run --outdir .wrangler/dry-run",
+    "deploy": "yarn typecheck && yarn test && wrangler deploy",
+    "deploy:dry-run": "wrangler deploy --dry-run --outdir dist/worker",
     "test": "tsx --test \"test/**/*.test.ts\""
   },
   "dependencies": {},
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.6.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
     "wrangler": "^4.160.1"
   }
 }

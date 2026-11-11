@@ -18,6 +18,7 @@ test('a Worker without SECRET_ID answers 500 JSON instead of crashing', async ()
   const res = await worker.fetch(req('/health'), { LOG_LEVEL: 'silent' });
   assert.equal(res.status, 500);
   assert.deepEqual(await res.json(), { error: 'server misconfigured' });
+  assert.equal(res.headers.get('access-control-allow-origin'), '*');
 });
 
 /** Everything the Worker bundle can reach must avoid Node-only APIs, so it runs without nodejs_compat. */

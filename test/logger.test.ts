@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLogger } from '../src/logger.js';
 
-const capture = (level?: 'info' | 'warn' | 'error' | 'silent') => {
+const capture = (level?: 'info' | 'warn' | 'error' | 'off' | 'silent') => {
   const lines: Array<{ line: string; severity: string }> = [];
   const logger = createLogger({ level, now: () => new Date('2026-01-02T03:04:05.678Z'), write: (line, severity) => lines.push({ line, severity }) });
   return { logger, lines, json: () => lines.map(l => JSON.parse(l.line)) };
@@ -21,6 +21,14 @@ test('errors add err with the message only, never the stack', () => {
   assert.deepEqual(json().map(e => e.err), ['boom', 'plain text']);
   assert.doesNotMatch(JSON.stringify(json()), /\bat\s.+\.ts/);
   assert.deepEqual(Object.keys(json()[0]), ['time', 'severity', 'msg', 'err']);
+});
+
+test('LOG_LEVEL=off writes nothing at any severity, and silent is an alias', () => {
+  for (const level of ['off', 'silent'] as const) {
+    const { logger, lines } = capture(level);
+    logger.info('i'); logger.warn('w', new Error('e')); logger.error('e', new Error('e'));
+    assert.equal(lines.length, 0, level);
+  }
 });
 
 test('LOG_LEVEL filtering', () => {
@@ -51,6 +59,8 @@ test('loggerFromEnv honours LOG_LEVEL and ignores unknown values', async () => {
   const orig = { log: console.log, warn: console.warn, error: console.error };
   console.log = (l: string) => { lines.push(l); }; console.warn = console.log; console.error = console.log;
   try {
+    loggerFromEnv({ LOG_LEVEL: 'off' }).error('hidden');
+    loggerFromEnv({ LOG_LEVEL: ' OFF ' }).error('hidden');
     loggerFromEnv({ LOG_LEVEL: 'silent' }).error('hidden');
     loggerFromEnv({ LOG_LEVEL: 'warn' }).info('hidden');
     assert.equal(lines.length, 0);

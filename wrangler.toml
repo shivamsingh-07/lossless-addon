@@ -1,7 +1,7 @@
-# Cloudflare Workers deployment. Run `yarn deploy` (or `npx wrangler deploy`).
+# Cloudflare Workers deployment. Run `yarn deploy` (or `yarn wrangler deploy`).
 #
 # Required secret, set once and never committed:
-#   npx wrangler secret put SECRET_ID      # paste the output of: openssl rand -hex 32
+#   yarn wrangler secret put SECRET_ID      # paste the output of: openssl rand -hex 32
 #
 # Local secrets for `yarn dev:worker` go in .dev.vars (see .dev.vars.example).
 name = "lossless-addon"
@@ -11,7 +11,7 @@ compatibility_date = "2026-10-01"
 
 # Public settings. Anything secret belongs in `wrangler secret`, not here.
 [vars]
-LOG_LEVEL = "info"
+LOG_LEVEL = "info"   # info | warn | error | off
 # Uncomment to override the defaults:
 # PROVIDER_MODE = "multi"
 # REQUEST_TIMEOUT_MS = "6000"

@@ -1,7 +1,7 @@
 import { buildAddons } from "./addons.js";
 import { loadConfig, stringEnv, type Config } from "./config.js";
 import { AppError } from "./errors.js";
-import { json, Router } from "./http.js";
+import { json, preflight, Router, withCors } from "./http.js";
 import { loggerFromEnv, type Logger } from "./logger.js";
 import { registerAddon } from "./routes/addon.js";
 import { registerSystem } from "./routes/system.js";
@@ -12,11 +12,6 @@ export interface App {
   logger: Logger;
   /** Handles one request. Never throws: failures become JSON error responses. */
   fetch(request: Request): Promise<Response>;
-}
-
-/** The path for logs: the track id after /stream/ is dropped. */
-function logPath(pathname: string): string {
-  return pathname.replace(/\/stream\/[^/]+$/, "/stream/:id").slice(0, 100);
 }
 
 /**
@@ -39,15 +34,16 @@ export function createApp(rawEnv: Readonly<Record<string, unknown>>, options: { 
   for (const addon of addons) registerAddon(router, addon, config, logger);
 
   async function respond(request: Request, url: URL): Promise<Response> {
+    if (request.method === "OPTIONS") return preflight(request);
     try {
-      return await router.handle(request, url);
+      return withCors(await router.handle(request, url));
     } catch (error) {
-      if (error instanceof AppError) return json(error.statusCode, { error: error.message });
+      if (error instanceof AppError) return withCors(json(error.statusCode, { error: error.message }));
       const candidate = error as { statusCode?: unknown; status?: unknown };
       const status =
         typeof candidate.statusCode === "number" ? candidate.statusCode : typeof candidate.status === "number" ? candidate.status : 500;
       logger.error("request failed", error);
-      return json(status, { error: status >= 500 ? "upstream service unavailable" : "request failed" });
+      return withCors(json(status, { error: status >= 500 ? "upstream service unavailable" : "request failed" }));
     }
   }
 
@@ -59,7 +55,7 @@ export function createApp(rawEnv: Readonly<Record<string, unknown>>, options: { 
       const url = new URL(request.url);
       const response = await respond(request, url);
       if (url.pathname !== "/health") {
-        const line = `${request.method} ${logPath(url.pathname)} ${response.status} ${(performance.now() - started).toFixed(1)}ms`;
+        const line = `${request.method} ${url.pathname.slice(0, 200)} ${response.status} ${(performance.now() - started).toFixed(1)}ms`;
         if (response.status >= 500) logger.warn(line);
         else logger.info(line);
       }

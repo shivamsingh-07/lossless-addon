@@ -14,10 +14,10 @@ A self-hosted lossless audio addon for **BitChord**. It searches its providers a
 ### Cloudflare Workers (recommended)
 
 ```bash
-npm install
-npx wrangler login
-npx wrangler secret put SECRET_ID    # paste the output of: openssl rand -hex 32
-npm run deploy
+yarn install
+yarn wrangler login
+yarn wrangler secret put SECRET_ID    # paste the output of: openssl rand -hex 32
+yarn deploy
 ```
 
 Wrangler prints your `https://…workers.dev` URL. Keep `SECRET_ID` the same on every deploy so existing track IDs stay valid. Public settings live in `wrangler.toml`.
@@ -27,8 +27,8 @@ Wrangler prints your `https://…workers.dev` URL. Keep `SECRET_ID` the same on 
 BitChord needs public HTTPS, so put the server behind a reverse proxy.
 
 ```bash
-npm install && npm run build
-SECRET_ID=<your secret> PORT=8080 npm start
+yarn install && yarn build
+SECRET_ID=<your secret> PORT=8080 yarn start
 ```
 
 Or with Docker: put `SECRET_ID=<your secret>` in `.env` and run `docker compose up -d --build`.
@@ -45,35 +45,35 @@ Open **Sources → Add addon** and paste your server's URL. To use a single prov
 | `/c`  | Monochrome                    |
 | `/f`  | Instable                      |
 
-Each route serves `GET /manifest.json`, `GET /search?q=…&quality=LOSSLESS|HIGH|LOW` and `GET /stream/:id`. The root also serves `/health` and `/api/telemetry` (live up/down and latency per provider).
+Each route serves `GET /manifest.json`, `GET /search?q=…&quality=LOSSLESS|HIGH|LOW` and `GET /stream/:id`. The root also serves `/health` and `/api/telemetry` (live up/down and latency per provider). Every response allows any origin (CORS) and `OPTIONS` preflights are answered, so browser-based clients can use the addon.
 
 ## Configuration
 
 Set variables in the environment or `.env` (Node), or under `[vars]` in `wrangler.toml` (Workers). The server refuses to start without `SECRET_ID`.
 
-| Variable              | Default                        | Purpose                                  |
-| :-------------------- | :----------------------------- | :--------------------------------------- |
-| `SECRET_ID`           | required                       | Signs track IDs. Never commit it.        |
-| `PORT`, `HOST`        | `3000`, `0.0.0.0`              | Node only                                |
-| `LOG_LEVEL`           | `info`                         | `info`, `warn`, `error` or `silent`      |
-| `REQUEST_TIMEOUT_MS`  | `6000`                         | Per upstream request                     |
-| `UPSTREAM_RETRIES`    | `1`                            | Retries per upstream request             |
-| `CACHE_TTL_SECONDS`   | `300`                          | Search result cache                      |
-| `MONOCHROME_BASE_URL` | `https://tracks.monochrome.st` | Provider URL                             |
-| `INSTABLE_BASE_URL`   | `https://instable.arcod.xyz`   | Provider URL                             |
-| `PROVIDER_MODE`       | `multi`                        | `multi`, `stub` (no upstreams) or `http` |
+| Variable              | Default                        | Purpose                                    |
+| :-------------------- | :----------------------------- | :----------------------------------------- |
+| `SECRET_ID`           | required                       | Signs track IDs. Never commit it.          |
+| `PORT`, `HOST`        | `3000`, `0.0.0.0`              | Node only                                  |
+| `LOG_LEVEL`           | `info`                         | `info`, `warn`, `error` or `off` (no logs) |
+| `REQUEST_TIMEOUT_MS`  | `6000`                         | Per upstream request                       |
+| `UPSTREAM_RETRIES`    | `1`                            | Retries per upstream request               |
+| `CACHE_TTL_SECONDS`   | `300`                          | Search result cache                        |
+| `MONOCHROME_BASE_URL` | `https://tracks.monochrome.st` | Provider URL                               |
+| `INSTABLE_BASE_URL`   | `https://instable.arcod.xyz`   | Provider URL                               |
+| `PROVIDER_MODE`       | `multi`                        | `multi`, `stub` (no upstreams) or `http`   |
 
 `http` mode talks to one JSON provider you define with `PROVIDER_URL` (HTTPS), `PROVIDER_SEARCH_PATH`, `PROVIDER_STREAM_PATH` (use `{id}`) and an optional `PROVIDER_TOKEN`.
 
-Logs are one JSON line each (`time`, `severity`, `msg`, and `err` when there is one). Search text and stream URLs are never logged.
+Logs are one JSON line each (`time`, `severity`, `msg`, and `err` when there is one). Request paths are logged, including track IDs, but never search text, query strings or stream URLs.
 
 ## Development
 
 ```bash
-npm run dev          # Node, watch mode
-npm run dev:worker   # real Workers runtime, needs .dev.vars (see .dev.vars.example)
-npm test             # tests, no network
-npm run typecheck
+yarn dev          # Node, watch mode
+yarn dev:worker   # real Workers runtime, needs .dev.vars (see .dev.vars.example)
+yarn test         # tests, no network
+yarn typecheck
 ```
 
 The app is plain `Request` to `Response` code in `src/app.ts`. `src/adapters/` holds the Worker and Node entry points, and shared code avoids Node-only APIs (a test enforces it).
