@@ -4,6 +4,8 @@ export interface Config {
   requestTimeoutMs: number;
   upstreamRetries: number;
   cacheTtlMs: number;
+  /** How long a stream lookup is reused. 0 turns it off. Stream URLs expire, so this stays short. */
+  streamCacheMs: number;
   secretId: string;
   provider: "stub" | "http" | "multi";
   apiBaseUrl?: string;
@@ -42,6 +44,7 @@ export function loadConfig(env: Env): Config {
     requestTimeoutMs: integer(env, "REQUEST_TIMEOUT_MS", 6000, 1),
     upstreamRetries: integer(env, "UPSTREAM_RETRIES", 1, 0),
     cacheTtlMs: integer(env, "CACHE_TTL_SECONDS", 300, 1) * 1000,
+    streamCacheMs: integer(env, "STREAM_CACHE_SECONDS", 120, 0) * 1000,
     secretId,
     provider,
     apiBaseUrl,

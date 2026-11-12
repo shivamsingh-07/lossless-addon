@@ -7,7 +7,7 @@
  * Messages must never contain search text or stream URLs.
  */
 
-const LEVELS = { info: 20, warn: 30, error: 40, off: 100, silent: 100 } as const;
+const LEVELS = { info: 20, warn: 30, error: 40, off: 100 } as const;
 type LogLevel = keyof typeof LEVELS;
 type Severity = "INFO" | "WARN" | "ERROR";
 
@@ -37,7 +37,7 @@ export function createLogger(options: LoggerOptions = {}): Logger {
   const write = options.write ?? defaultWrite;
   const now = options.now ?? (() => new Date());
 
-  const emit = (level: Exclude<LogLevel, "off" | "silent">, severity: Severity, msg: string, err?: unknown): void => {
+  const emit = (level: Exclude<LogLevel, "off">, severity: Severity, msg: string, err?: unknown): void => {
     if (LEVELS[level] < threshold) return;
     const entry: Record<string, string> = { time: now().toISOString(), severity, msg: clip(msg) };
     if (err !== undefined) entry.err = errorText(err);
@@ -55,7 +55,7 @@ export function createLogger(options: LoggerOptions = {}): Logger {
   };
 }
 
-/** A logger whose level comes from LOG_LEVEL (info | warn | error | off, default info; `silent` is an alias of `off`). */
+/** A logger whose level comes from LOG_LEVEL (info | warn | error | off, default info). */
 export function loggerFromEnv(env: Readonly<Record<string, unknown>>): Logger {
   const raw = typeof env.LOG_LEVEL === "string" ? env.LOG_LEVEL.trim().toLowerCase() : "";
   const known = Object.hasOwn(LEVELS, raw);

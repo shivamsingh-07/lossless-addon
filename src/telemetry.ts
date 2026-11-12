@@ -70,7 +70,7 @@ export class TelemetryProbe {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
-        provider.search("a", "LOSSLESS", "auto"),
+        provider.search(`health ${Date.now()}`, "LOSSLESS", "auto"), // unique, so edge caches never answer for the provider
         new Promise((_, reject) => {
           timer = setTimeout(() => reject(new Error("timeout")), this.timeoutMs);
         }),

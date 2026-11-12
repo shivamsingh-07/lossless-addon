@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { call, testApp } from './helpers.js';
-import { publicId } from '../src/normalize.js';
+import { publicId } from '../src/track-id.js';
 
 const app = testApp();
 const PREFIXES = ['', '/c', '/f'];
@@ -77,26 +77,6 @@ test('the app refuses to build without SECRET_ID', () => {
   assert.throws(() => testApp({ SECRET_ID: '' }), /SECRET_ID is required/);
 });
 
-test('CORS: every response is readable from any origin, errors included', async () => {
-  for (const path of ['/manifest.json', '/search', '/nowhere', '/stream/nope', '/health']) {
-    assert.equal((await call(app, path, { headers: { origin: 'https://player.example' } })).headers.get('access-control-allow-origin'), '*', path);
-  }
-  assert.equal((await call(app, '/health', { method: 'POST' })).headers.get('access-control-allow-origin'), '*');
-});
-
-test('CORS preflight: OPTIONS gets 204 with the requested headers allowed', async () => {
-  const res = await call(app, '/manifest.json', {
-    method: 'OPTIONS',
-    headers: { origin: 'https://player.example', 'access-control-request-method': 'GET', 'access-control-request-headers': 'x-bitchord-token,x-bitchord-proof' },
-  });
-  assert.equal(res.status, 204);
-  assert.equal(res.headers.get('access-control-allow-origin'), '*');
-  assert.match(res.headers.get('access-control-allow-methods') ?? '', /GET/);
-  assert.equal(res.headers.get('access-control-allow-headers'), 'x-bitchord-token,x-bitchord-proof');
-  assert.equal((await call(app, '/manifest.json', { method: 'OPTIONS' })).status, 204);
-  assert.equal(await res.text(), '');
-});
-
 test('request logs show the real path, including the track id, but never the query string', async () => {
   const { createLogger } = await import('../src/logger.js');
   const { createApp } = await import('../src/app.js');
@@ -111,13 +91,24 @@ test('request logs show the real path, including the track id, but never the que
   assert.match(messages[1], /^GET \/search 200 /);
 });
 
-test('repeated and trailing slashes still reach the route, on every runtime', async () => {
-  for (const path of ['//manifest.json', '/c//manifest.json', '/manifest.json/', '///health', '/search/?q=a']) {
-    const res = await call(app, path);
-    assert.equal(res.status, 200, path);
+test('the manifest has no quality setting: BitChord asks for its own tier and the server picks the file', async () => {
+  for (const prefix of PREFIXES) {
+    const manifest = await (await call(app, `${prefix}/manifest.json`)).json();
+    assert.equal(manifest.settings, undefined, prefix);
+    assert.deepEqual(manifest.resources, ['search', 'stream']);
   }
-  assert.equal((await call(app, '//manifest.json')).headers.get('content-type'), 'application/json; charset=utf-8');
-  assert.equal((await call(app, '/')).status, 200);
-  assert.equal((await call(app, '/manifest.json.bak')).status, 404);
-  assert.equal((await call(app, '/a/manifest.json')).status, 404);
+});
+
+test('quality takes the tiers BitChord sends, in any case, and nothing else', async () => {
+  for (const quality of ['LOSSLESS', 'lossless', 'HIGH', 'High', 'LOW', 'low']) {
+    assert.equal((await call(app, `/search?q=a&quality=${quality}`)).status, 200, quality);
+  }
+  for (const quality of ['hi-res', 'HI_RES', 'ultra', '']) assert.equal((await call(app, `/search?q=a&quality=${quality}`)).status, 400, quality || '(empty)');
+  assert.equal((await call(app, '/search?q=a')).status, 200);
+});
+
+test('the manifest is cached for minutes, not hours, so changes reach BitChord quickly', async () => {
+  const control = (await call(app, '/manifest.json')).headers.get('cache-control') ?? '';
+  assert.match(control, /max-age=300/);
+  assert.match(control, /s-maxage=300/);
 });

@@ -4,7 +4,7 @@ import { TelemetryProbe } from '../src/telemetry.js';
 import { createLogger } from '../src/logger.js';
 import type { Provider } from '../src/types.js';
 
-const quiet = createLogger({ level: 'silent' });
+const quiet = createLogger({ level: 'off' });
 
 const provider = (search: () => Promise<unknown[]>): Provider => ({ search: search as never, getStream: async () => null });
 

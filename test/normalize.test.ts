@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { normalizeTrack, publicId, streamResponse, upstreamIdFromPublicId } from '../src/normalize.js';
+import { formatLabel, normalizeTrack, streamResponse, tierLabel } from '../src/normalize.js';
+import { publicId, upstreamIdFromPublicId } from '../src/track-id.js';
 import { TtlCache } from '../src/cache.js';
 
 const SECRET = 'unit-test-secret';
@@ -47,8 +48,30 @@ test('drops non-absolute artwork URLs', async () => {
 });
 
 test('rejects encrypted, non-HTTPS and malformed stream URLs', () => {
-  assert.throws(() => streamResponse({ url: 'https://cdn.example/a.flac', encrypted: true }, 'LOSSLESS'));
-  assert.throws(() => streamResponse({ url: 'http://cdn.example/a.flac' }, 'LOSSLESS'), /HTTPS/);
-  assert.throws(() => streamResponse({ url: 'https://', manifest: 'none' }, 'LOSSLESS'), /invalid stream URL/);
-  assert.equal(streamResponse({ url: 'https://api.arcod.xyz/v2/stream/play?t=x', manifest: 'none' }, 'LOSSLESS').url, 'https://api.arcod.xyz/v2/stream/play?t=x');
+  assert.throws(() => streamResponse({ url: 'https://cdn.example/a.flac', encrypted: true }));
+  assert.throws(() => streamResponse({ url: 'http://cdn.example/a.flac' }), /HTTPS/);
+  assert.throws(() => streamResponse({ url: 'https://', manifest: 'none' }), /invalid stream URL/);
+  assert.equal(streamResponse({ url: 'https://api.arcod.xyz/v2/stream/play?t=x', manifest: 'none' }).url, 'https://api.arcod.xyz/v2/stream/play?t=x');
+});
+
+test('a stream answer without a quality stays without one: nothing is claimed that the provider did not say', () => {
+  const answer = streamResponse({ url: 'https://cdn.example/a.flac', manifest: 'none' });
+  assert.equal(answer.quality, undefined);
+  assert.equal(answer.format, undefined);
+  const labelled = streamResponse({ url: 'https://cdn.example/a.m4a', quality: 'HIGH', format: 'm4a' });
+  assert.deepEqual([labelled.format, labelled.quality], ['M4A', 'HIGH']);
+});
+
+test('tiers and formats are written in capitals, whatever case the provider used', () => {
+  assert.deepEqual(['LOSSLESS', 'lossless', ' High ', 'HI_RES', 'hi-res', 'HI_RES_LOSSLESS'].map(tierLabel), ['LOSSLESS', 'LOSSLESS', 'HIGH', 'HI-RES', 'HI-RES', 'HI-RES']);
+  assert.deepEqual(['flac', 'M4a', ' mp3 '].map(formatLabel), ['FLAC', 'M4A', 'MP3']);
+  assert.equal(tierLabel(undefined), undefined);
+  assert.equal(tierLabel('  '), undefined);
+  assert.equal(formatLabel(''), undefined);
+  assert.equal(tierLabel('Studio Master'), 'Studio Master');
+});
+
+test('search rows carry the same style', async () => {
+  const row = await normalizeTrack({ upstreamId: '1', title: 'Song', format: 'flac', audioQuality: 'LOSSLESS' }, SECRET);
+  assert.deepEqual([row.format, row.audioQuality], ['FLAC', 'LOSSLESS']);
 });

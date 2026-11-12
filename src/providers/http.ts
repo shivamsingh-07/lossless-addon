@@ -1,7 +1,6 @@
 import type { Config } from '../config.js';
 import type { Provider, UpstreamStream, UpstreamTrack, Quality } from '../types.js';
-
-export class UpstreamError extends Error { constructor(public readonly status: number, message: string) { super(message); } }
+import { isRecord, UpstreamError } from './upstream.js';
 
 /**
  * Adapter for an authorized, documented JSON provider. Endpoint paths are
@@ -47,7 +46,6 @@ export class HttpProvider implements Provider {
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null; }
 function isTrack(value: unknown): value is UpstreamTrack {
   return isRecord(value) && typeof value.upstreamId === 'string' && typeof value.title === 'string';
 }

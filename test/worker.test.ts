@@ -4,7 +4,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import worker from '../src/adapters/worker.js';
 
-const env = { SECRET_ID: 'worker-secret', PROVIDER_MODE: 'stub', LOG_LEVEL: 'silent', SOME_BINDING: { not: 'a string' } };
+const env = { SECRET_ID: 'worker-secret', PROVIDER_MODE: 'stub', LOG_LEVEL: 'off', SOME_BINDING: { not: 'a string' } };
 const req = (path: string) => new Request(`https://audio.example.workers.dev${path}`);
 
 test('the Worker entry serves requests from bindings', async () => {
@@ -15,10 +15,9 @@ test('the Worker entry serves requests from bindings', async () => {
 });
 
 test('a Worker without SECRET_ID answers 500 JSON instead of crashing', async () => {
-  const res = await worker.fetch(req('/health'), { LOG_LEVEL: 'silent' });
+  const res = await worker.fetch(req('/health'), { LOG_LEVEL: 'off' });
   assert.equal(res.status, 500);
   assert.deepEqual(await res.json(), { error: 'server misconfigured' });
-  assert.equal(res.headers.get('access-control-allow-origin'), '*');
 });
 
 /** Everything the Worker bundle can reach must avoid Node-only APIs, so it runs without nodejs_compat. */

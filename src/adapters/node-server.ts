@@ -2,19 +2,12 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { App } from "../app.js";
 
 /**
- * Rebuilds the request URL from the HTTP request target. The target is used as text, never
- * resolved against a base: resolving would read a leading `//` as a host (`//manifest.json`
- * becoming http://manifest.json/). Origin-form (`/path?query`) is the normal case;
- * absolute-form (`http://host/path`) is accepted, and `*` or anything unusable becomes `/`.
+ * Rebuilds the request URL from the request target as text. It is never resolved against a base:
+ * `new URL("//manifest.json", base)` would read "manifest.json" as a host.
  */
 function requestUrl(req: IncomingMessage): URL {
-  const host = req.headers.host ?? "localhost";
-  const target = req.url ?? "/";
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(target)) {
-    const absolute = new URL(target);
-    return new URL(`http://${host}${absolute.pathname}${absolute.search}`);
-  }
-  return new URL(`http://${host}${target.startsWith("/") ? target : "/"}`);
+  const target = req.url?.startsWith("/") ? req.url : "/";
+  return new URL(`http://${req.headers.host ?? "localhost"}${target}`);
 }
 
 function toRequest(req: IncomingMessage): Request {

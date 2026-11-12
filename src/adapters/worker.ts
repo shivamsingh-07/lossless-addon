@@ -21,7 +21,7 @@ export default {
       loggerFromEnv(env).error("invalid configuration", error);
       return new Response(JSON.stringify({ error: "server misconfigured" }), {
         status: 500,
-        headers: { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": "*" },
+        headers: { "content-type": "application/json; charset=utf-8" },
       });
     }
     return app.fetch(request);

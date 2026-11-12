@@ -45,23 +45,26 @@ Open **Sources → Add addon** and paste your server's URL. To use a single prov
 | `/c`  | Monochrome                    |
 | `/f`  | Instable                      |
 
-Each route serves `GET /manifest.json`, `GET /search?q=…&quality=LOSSLESS|HIGH|LOW` and `GET /stream/:id`. The root also serves `/health` and `/api/telemetry` (live up/down and latency per provider). Every response allows any origin (CORS) and `OPTIONS` preflights are answered, so browser-based clients can use the addon.
+Each route serves `GET /manifest.json`, `GET /search?q=…&quality=LOSSLESS|HIGH|LOW` and `GET /stream/:id`. The root also serves `/health` and `/api/telemetry` (live up/down and latency per provider).
 
 ## Configuration
 
 Set variables in the environment or `.env` (Node), or under `[vars]` in `wrangler.toml` (Workers). The server refuses to start without `SECRET_ID`.
 
-| Variable              | Default                        | Purpose                                    |
-| :-------------------- | :----------------------------- | :----------------------------------------- |
-| `SECRET_ID`           | required                       | Signs track IDs. Never commit it.          |
-| `PORT`, `HOST`        | `3000`, `0.0.0.0`              | Node only                                  |
-| `LOG_LEVEL`           | `info`                         | `info`, `warn`, `error` or `off` (no logs) |
-| `REQUEST_TIMEOUT_MS`  | `6000`                         | Per upstream request                       |
-| `UPSTREAM_RETRIES`    | `1`                            | Retries per upstream request               |
-| `CACHE_TTL_SECONDS`   | `300`                          | Search result cache                        |
-| `MONOCHROME_BASE_URL` | `https://tracks.monochrome.st` | Provider URL                               |
-| `INSTABLE_BASE_URL`   | `https://instable.arcod.xyz`   | Provider URL                               |
-| `PROVIDER_MODE`       | `multi`                        | `multi`, `stub` (no upstreams) or `http`   |
+| Variable               | Default                        | Purpose                                    |
+| :--------------------- | :----------------------------- | :----------------------------------------- |
+| `SECRET_ID`            | required                       | Signs track IDs. Never commit it.          |
+| `PORT`, `HOST`         | `3000`, `0.0.0.0`              | Node only                                  |
+| `LOG_LEVEL`            | `info`                         | `info`, `warn`, `error` or `off` (no logs) |
+| `REQUEST_TIMEOUT_MS`   | `6000`                         | Per upstream request                       |
+| `UPSTREAM_RETRIES`     | `1`                            | Retries per upstream request               |
+| `CACHE_TTL_SECONDS`    | `300`                          | Search result cache                        |
+| `STREAM_CACHE_SECONDS` | `120`                          | Stream lookup cache, `0` turns it off      |
+| `MONOCHROME_BASE_URL`  | `https://tracks.monochrome.st` | Provider URL                               |
+| `INSTABLE_BASE_URL`    | `https://instable.arcod.xyz`   | Provider URL                               |
+| `PROVIDER_MODE`        | `multi`                        | `multi`, `stub` (no upstreams) or `http`   |
+
+**Caching.** Search results are cached for `CACHE_TTL_SECONDS` in memory, and the last results are served if every provider fails. On Cloudflare Workers the provider's search answers are also cached at the edge (this works on `workers.dev`, unlike the Cache API). Stream lookups are cached too, but only for `STREAM_CACHE_SECONDS` (2 minutes), because the links expire. Only successful answers are stored, and an expired entry is never served stale.
 
 `http` mode talks to one JSON provider you define with `PROVIDER_URL` (HTTPS), `PROVIDER_SEARCH_PATH`, `PROVIDER_STREAM_PATH` (use `{id}`) and an optional `PROVIDER_TOKEN`.
 

@@ -40,17 +40,9 @@ function raw(path: string): Promise<{ status: number; body: string }> {
   });
 }
 
-test('a leading // is a path, not a host: //manifest.json serves the manifest', async () => {
+test('a leading // is read as a path, not a host: //manifest.json is not the home page', async () => {
   const res = await raw('//manifest.json');
-  assert.equal(res.status, 200);
-  assert.equal(JSON.parse(res.body).name, 'Hi-Res Audio');
-  assert.equal((await raw('//c//manifest.json')).status, 200);
-  assert.equal(JSON.parse((await raw('//health')).body).ok, true);
-});
-
-test('other request-target forms: absolute-form, trailing slash, query strings, asterisk', async () => {
-  assert.equal(JSON.parse((await raw('http://anything.example/health')).body).ok, true);
-  assert.equal((await raw('/manifest.json/')).status, 200);
-  assert.equal((await raw('/search?q=a')).status, 200);
-  assert.equal((await raw('*')).status, 200);
+  assert.equal(res.status, 404);
+  assert.deepEqual(JSON.parse(res.body), { error: 'not found' });
+  assert.equal((await raw('/manifest.json')).status, 200);
 });

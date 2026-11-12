@@ -2,7 +2,7 @@ import type { Config } from "./config.js";
 import { createProvider, createSourceProvider } from "./providers/index.js";
 import type { Provider } from "./types.js";
 
-interface AddonManifest {
+export interface AddonManifest {
   id: string;
   name: string;
   version: string;

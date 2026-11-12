@@ -1,53 +1,50 @@
 import type { Config } from '../config.js';
 import type { Provider, UpstreamStream, UpstreamTrack, Quality } from '../types.js';
-import { UpstreamError } from './http.js';
-
-type RecordValue = Record<string, unknown>;
+import { fetchJson, isRecord } from './upstream.js';
 
 export class MonochromeProvider implements Provider {
   constructor(private readonly config: Config) {}
 
   async search(query: string, _quality: Quality, _atmos: string): Promise<UpstreamTrack[]> {
-    const body = await this.request('/search/tracks', { q: query, limit: '10' });
+    const url = new URL('/search/tracks', this.config.monochromeBaseUrl);
+    url.searchParams.set('q', query);
+    url.searchParams.set('limit', '10');
+    const body = await fetchJson(url, {
+      name: 'Monochrome',
+      timeoutMs: Math.max(this.config.requestTimeoutMs, 10_000),
+      attempts: this.config.upstreamRetries + 1,
+      cacheSeconds: Math.round(this.config.cacheTtlMs / 1000),
+    });
     const items = isRecord(body) && Array.isArray(body.tracks) ? body.tracks : [];
     return items.filter(isRecord).map(toTrack).filter((track): track is UpstreamTrack => track !== null);
   }
 
   async getStream(trackId: string, _quality: Quality, _atmos: string): Promise<UpstreamStream | null> {
     if (!/^[A-Za-z0-9_-]+$/.test(trackId)) return null;
-    return {
-      url: new URL(`/track/${encodeURIComponent(trackId)}`, this.baseUrl()).toString(),
-      format: 'flac', quality: 'LOSSLESS', manifest: 'none', encrypted: false,
-    };
+    const url = new URL(`/track/${encodeURIComponent(trackId)}`, this.config.monochromeBaseUrl).toString();
+    // The upstream serves FLAC for most tracks but AAC in an MP4 container for some, so the
+    // label comes from the file itself instead of being assumed.
+    const label = await this.sniff(url);
+    return { url, ...label, manifest: 'none', encrypted: false };
   }
 
-  private baseUrl(): string { return this.config.monochromeBaseUrl; }
-
-  private async request(path: string, params: Record<string, string>): Promise<unknown> {
-    const url = new URL(path, this.baseUrl());
-    for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
-    let lastError: unknown;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), Math.max(this.config.requestTimeoutMs, 10000));
-      try {
-        const response = await fetch(url, { headers: { accept: 'application/json' }, signal: controller.signal });
-        let body: unknown;
-        try { body = await response.json(); } catch { throw new UpstreamError(502, 'Monochrome returned invalid JSON'); }
-        if (!response.ok) throw new UpstreamError(response.status >= 500 ? 502 : response.status, 'Monochrome request failed');
-        return body;
-      } catch (error) {
-        lastError = error;
-        if (error instanceof UpstreamError && error.status < 500) throw error;
-        if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 200));
-      } finally { clearTimeout(timeout); }
+  /** Reads the first 12 bytes to tell FLAC from MP4. Anything unclear makes no claim at all. */
+  private async sniff(url: string): Promise<{ format?: string; quality?: string }> {
+    try {
+      const response = await fetch(url, { headers: { range: 'bytes=0-11' }, signal: AbortSignal.timeout(Math.min(this.config.requestTimeoutMs, 5000)) });
+      if (response.status !== 206) { await response.body?.cancel(); return {}; } // range ignored: never download the file
+      const head = new Uint8Array(await response.arrayBuffer());
+      const text = (from: number, to: number) => String.fromCharCode(...head.slice(from, to));
+      if (text(0, 4) === 'fLaC') return { format: 'flac', quality: 'LOSSLESS' };
+      if (text(4, 8) === 'ftyp') return { format: 'm4a', quality: 'HIGH' };
+      return {};
+    } catch {
+      return {};
     }
-    if (lastError instanceof UpstreamError) throw lastError;
-    throw new UpstreamError(502, 'Monochrome request failed');
   }
 }
 
-function toTrack(raw: RecordValue): UpstreamTrack | null {
+function toTrack(raw: Record<string, unknown>): UpstreamTrack | null {
   const id = raw.id ?? raw.trackId;
   const title = raw.title;
   if ((typeof id !== 'number' && typeof id !== 'string') || typeof title !== 'string' || !title.trim()) return null;
@@ -60,4 +57,3 @@ function toTrack(raw: RecordValue): UpstreamTrack | null {
   };
 }
 
-function isRecord(value: unknown): value is RecordValue { return typeof value === 'object' && value !== null; }

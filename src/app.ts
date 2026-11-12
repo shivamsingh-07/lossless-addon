@@ -1,7 +1,7 @@
 import { buildAddons } from "./addons.js";
 import { loadConfig, stringEnv, type Config } from "./config.js";
 import { AppError } from "./errors.js";
-import { json, preflight, Router, withCors } from "./http.js";
+import { json, Router } from "./http.js";
 import { loggerFromEnv, type Logger } from "./logger.js";
 import { registerAddon } from "./routes/addon.js";
 import { registerSystem } from "./routes/system.js";
@@ -34,16 +34,15 @@ export function createApp(rawEnv: Readonly<Record<string, unknown>>, options: { 
   for (const addon of addons) registerAddon(router, addon, config, logger);
 
   async function respond(request: Request, url: URL): Promise<Response> {
-    if (request.method === "OPTIONS") return preflight(request);
     try {
-      return withCors(await router.handle(request, url));
+      return await router.handle(request, url);
     } catch (error) {
-      if (error instanceof AppError) return withCors(json(error.statusCode, { error: error.message }));
+      if (error instanceof AppError) return json(error.statusCode, { error: error.message });
       const candidate = error as { statusCode?: unknown; status?: unknown };
       const status =
         typeof candidate.statusCode === "number" ? candidate.statusCode : typeof candidate.status === "number" ? candidate.status : 500;
       logger.error("request failed", error);
-      return withCors(json(status, { error: status >= 500 ? "upstream service unavailable" : "request failed" }));
+      return json(status, { error: status >= 500 ? "upstream service unavailable" : "request failed" });
     }
   }
 

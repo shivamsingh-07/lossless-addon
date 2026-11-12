@@ -1,3 +1,4 @@
+/** BitChord's own tiers. A lossless request means the best lossless file available, starting at hi-res. */
 export type Quality = 'LOSSLESS' | 'HIGH' | 'LOW';
 
 export interface UpstreamTrack {

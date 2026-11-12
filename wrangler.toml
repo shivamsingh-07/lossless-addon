@@ -7,7 +7,6 @@
 name = "lossless-addon"
 main = "src/adapters/worker.ts"
 compatibility_date = "2026-10-01"
-# No nodejs_compat flag: the Worker code only uses Web APIs (fetch, Web Crypto, console).
 
 # Publish on https://<name>.<your-subdomain>.workers.dev. Set to false if you use a custom domain.
 workers_dev = true
@@ -16,8 +15,8 @@ preview_urls = false
 
 # Public settings. Anything secret belongs in `wrangler secret`, not here.
 [vars]
-LOG_LEVEL = "info"   # info | warn | error | off
 # Uncomment to override the defaults:
+# LOG_LEVEL = "info"
 # PROVIDER_MODE = "multi"
 # REQUEST_TIMEOUT_MS = "6000"
 # UPSTREAM_RETRIES = "1"

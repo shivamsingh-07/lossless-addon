@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createLogger } from '../src/logger.js';
 
-const capture = (level?: 'info' | 'warn' | 'error' | 'off' | 'silent') => {
+const capture = (level?: 'info' | 'warn' | 'error' | 'off') => {
   const lines: Array<{ line: string; severity: string }> = [];
   const logger = createLogger({ level, now: () => new Date('2026-01-02T03:04:05.678Z'), write: (line, severity) => lines.push({ line, severity }) });
   return { logger, lines, json: () => lines.map(l => JSON.parse(l.line)) };
@@ -23,21 +23,13 @@ test('errors add err with the message only, never the stack', () => {
   assert.deepEqual(Object.keys(json()[0]), ['time', 'severity', 'msg', 'err']);
 });
 
-test('LOG_LEVEL=off writes nothing at any severity, and silent is an alias', () => {
-  for (const level of ['off', 'silent'] as const) {
-    const { logger, lines } = capture(level);
-    logger.info('i'); logger.warn('w', new Error('e')); logger.error('e', new Error('e'));
-    assert.equal(lines.length, 0, level);
-  }
-});
-
 test('LOG_LEVEL filtering', () => {
   const warn = capture('warn');
   warn.logger.info('i'); warn.logger.warn('w'); warn.logger.error('e');
   assert.deepEqual(warn.json().map(e => e.severity), ['WARN', 'ERROR']);
-  const silent = capture('silent');
-  silent.logger.error('nope');
-  assert.equal(silent.lines.length, 0);
+  const off = capture('off');
+  off.logger.info('i'); off.logger.warn('w', new Error('e')); off.logger.error('nope', new Error('e'));
+  assert.equal(off.lines.length, 0);
 });
 
 test('info is for stdout; warn and error carry their own severity for stderr', () => {
@@ -61,7 +53,6 @@ test('loggerFromEnv honours LOG_LEVEL and ignores unknown values', async () => {
   try {
     loggerFromEnv({ LOG_LEVEL: 'off' }).error('hidden');
     loggerFromEnv({ LOG_LEVEL: ' OFF ' }).error('hidden');
-    loggerFromEnv({ LOG_LEVEL: 'silent' }).error('hidden');
     loggerFromEnv({ LOG_LEVEL: 'warn' }).info('hidden');
     assert.equal(lines.length, 0);
     loggerFromEnv({ LOG_LEVEL: 'nonsense' }).info('shown');
